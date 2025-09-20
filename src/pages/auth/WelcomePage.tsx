@@ -1,33 +1,40 @@
-import React from 'react';
-import { FileText, Users, BarChart3, Shield, ArrowRight } from 'lucide-react';
+import React from "react";
+import { FileText, Users, BarChart3, Shield, ArrowRight } from "lucide-react";
 
 interface WelcomePageProps {
   onNavigateToLogin: () => void;
   onNavigateToRegister: () => void;
 }
 
-const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigateToRegister }) => {
+const WelcomePage: React.FC<WelcomePageProps> = ({
+  onNavigateToLogin,
+  onNavigateToRegister,
+}) => {
   const features = [
     {
       icon: FileText,
-      title: 'Formulários Personalizados',
-      description: 'Crie formulários de avaliação comportamental adaptados às suas necessidades'
+      title: "Questionários Personalizados",
+      description:
+        "Crie questionários de avaliação comportamental adaptados às suas necessidades",
     },
     {
       icon: Users,
-      title: 'Gestão de Usuários',
-      description: 'Gerencie profissionais, administradores e responsáveis em um só lugar'
+      title: "Gestão de Usuários",
+      description:
+        "Gerencie profissionais, administradores e responsáveis em um só lugar",
     },
     {
       icon: BarChart3,
-      title: 'Análise de Dados',
-      description: 'Visualize e exporte relatórios detalhados das avaliações realizadas'
+      title: "Análise de Dados",
+      description:
+        "Visualize e exporte relatórios detalhados das avaliações realizadas",
     },
     {
       icon: Shield,
-      title: 'Segurança Avançada',
-      description: 'Sistema seguro com autenticação JWT e controle de acesso por roles'
-    }
+      title: "Segurança Avançada",
+      description:
+        "Sistema seguro com autenticação JWT e controle de acesso por roles",
+    },
   ];
 
   return (
@@ -41,8 +48,12 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigate
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">TEA Assessment</h1>
-                <p className="text-xs text-slate-600">Sistema de Avaliação Comportamental</p>
+                <h1 className="text-xl font-bold text-slate-800">
+                  TEA Assessment
+                </h1>
+                <p className="text-xs text-slate-600">
+                  Sistema de Avaliação Comportamental
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -71,8 +82,9 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigate
             <span className="text-blue-600 block">Comportamental TEA</span>
           </h2>
           <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
-            Plataforma completa para criação, aplicação e análise de formulários de avaliação 
-            comportamental voltados para o Transtorno do Espectro Autista.
+            Plataforma completa para criação, aplicação e análise de
+            questionários de avaliação comportamental voltados para o Transtorno
+            do Espectro Autista.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -100,15 +112,19 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigate
               Funcionalidades Principais
             </h3>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Tudo que você precisa para realizar avaliações comportamentais de forma eficiente e profissional.
+              Tudo que você precisa para realizar avaliações comportamentais de
+              forma eficiente e profissional.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                <div
+                  key={index}
+                  className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+                >
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                     <Icon className="w-6 h-6 text-blue-600" />
                   </div>
@@ -129,9 +145,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigate
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
-            <h3 className="text-3xl font-bold mb-4">
-              Pronto para começar?
-            </h3>
+            <h3 className="text-3xl font-bold mb-4">Pronto para começar?</h3>
             <p className="text-xl mb-8 opacity-90">
               Crie sua conta gratuita e comece a usar o sistema hoje mesmo.
             </p>
@@ -155,7 +169,9 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onNavigateToLogin, onNavigate
               </div>
               <div>
                 <h4 className="font-bold">TEA Assessment</h4>
-                <p className="text-sm text-slate-400">Sistema de Avaliação Comportamental</p>
+                <p className="text-sm text-slate-400">
+                  Sistema de Avaliação Comportamental
+                </p>
               </div>
             </div>
             <div className="text-center md:text-right">

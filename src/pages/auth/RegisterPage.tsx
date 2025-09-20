@@ -1,167 +1,135 @@
-import React, { useState } from 'react';
-import { User, Mail, Lock, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone } from 'lucide-react';
-import { authService } from '../../services/authService';
-import { RegisterRequest } from '../../types/auth';
+import React, { useState } from "react";
+import {
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  UserPlus,
+  ArrowLeft,
+  FileText,
+  Phone,
+} from "lucide-react";
+import { authService } from "../../services/authService";
+import { RegisterRequest } from "../../types/auth";
 
 interface RegisterPageProps {
   onNavigateToLogin: () => void;
   onBack: () => void;
 }
 
-const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }) => {
+const RegisterPage: React.FC<RegisterPageProps> = ({
+  onNavigateToLogin,
+  onBack,
+}) => {
   const [formData, setFormData] = useState<RegisterRequest>({
-    fullName: '',
-    email: '',
-    password: '',
-    documentNumber: '',
-    phoneNumber: ''
+    fullName: "",
+    email: "",
+    password: "",
+    documentNumber: "",
+    phoneNumber: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState(false);
 
+  // --- FORMATADORES SIMPLES ---
   const formatCPF = (value: string) => {
-    // Remove tudo que não é dígito
-    const numbers = value.replace(/\D/g, '');
-    
-    // Aplica a máscara do CPF
-    if (numbers.length <= 11) {
-      return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    }
-    return numbers.slice(0, 11).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const numbers = value.replace(/\D/g, "").slice(0, 11);
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6)
+      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    if (numbers.length <= 9)
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+        6
+      )}`;
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+      6,
+      9
+    )}-${numbers.slice(9, 11)}`;
   };
 
   const formatPhone = (value: string) => {
-    // Remove tudo que não é dígito
-    const numbers = value.replace(/\D/g, '');
-    
-    // Aplica a máscara do telefone
-    if (numbers.length <= 11) {
-      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-    }
-    return numbers.slice(0, 11).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    const numbers = value.replace(/\D/g, "").slice(0, 11);
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 7)
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
+      7,
+      11
+    )}`;
   };
 
-  const validateCPF = (cpf: string): boolean => {
-    const numbers = cpf.replace(/\D/g, '');
-    
-    if (numbers.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(numbers)) return false; // CPF com todos os dígitos iguais
-    
-    // Validação do primeiro dígito verificador
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(numbers[i]) * (10 - i);
-    }
-    let remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(numbers[9])) return false;
-    
-    // Validação do segundo dígito verificador
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(numbers[i]) * (11 - i);
-    }
-    remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(numbers[10])) return false;
-    
-    return true;
-  };
+  // Validação simples: só conta os dígitos
+  const validateCPF = (cpf: string): boolean =>
+    cpf.replace(/\D/g, "").length === 11;
+
+  // --- HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
     let processedValue = value;
-    
-    if (name === 'documentNumber') {
-      processedValue = formatCPF(value);
-    } else if (name === 'phoneNumber') {
-      processedValue = formatPhone(value);
-    }
-    
-    setFormData(prev => ({
+
+    if (name === "documentNumber") processedValue = formatCPF(value);
+    if (name === "phoneNumber") processedValue = formatPhone(value);
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: processedValue
+      [name]: processedValue,
     }));
-    setError('');
+    setError("");
   };
 
   const validateForm = (): boolean => {
-    if (!formData.fullName.trim()) {
-      setError('Nome completo é obrigatório');
-      return false;
-    }
-    if (!formData.email.trim()) {
-      setError('Email é obrigatório');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Email inválido');
-      return false;
-    }
-    if (!formData.documentNumber.trim()) {
-      setError('CPF é obrigatório');
-      return false;
-    }
-    if (!validateCPF(formData.documentNumber)) {
-      setError('CPF inválido');
-      return false;
-    }
-    if (!formData.phoneNumber.trim()) {
-      setError('Telefone é obrigatório');
-      return false;
-    }
-    if (formData.phoneNumber.replace(/\D/g, '').length < 10) {
-      setError('Telefone deve ter pelo menos 10 dígitos');
-      return false;
-    }
-    if (!formData.password) {
-      setError('Senha é obrigatória');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      setError('Senha deve ter pelo menos 6 caracteres');
-      return false;
-    }
+    if (!formData.fullName.trim())
+      return setError("Nome completo é obrigatório"), false;
+    if (!formData.email.trim()) return setError("Email é obrigatório"), false;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+      return setError("Email inválido"), false;
+    if (!validateCPF(formData.documentNumber))
+      return setError("CPF deve ter 11 dígitos"), false;
+    if (formData.phoneNumber.replace(/\D/g, "").length < 10)
+      return setError("Telefone deve ter pelo menos 10 dígitos"), false;
+    if (!formData.password) return setError("Senha é obrigatória"), false;
+    if (formData.password.length < 6)
+      return setError("Senha deve ter pelo menos 6 caracteres"), false;
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
-      // Remove formatação do CPF e telefone antes de enviar
       const requestData = {
         ...formData,
-        documentNumber: formData.documentNumber.replace(/\D/g, ''),
-        phoneNumber: formData.phoneNumber.replace(/\D/g, '')
+        documentNumber: formData.documentNumber.replace(/\D/g, ""),
+        phoneNumber: formData.phoneNumber.replace(/\D/g, ""),
       };
-      
+
       const response = await authService.register(requestData);
 
-      if (response.status === 'Persisted' && response.result) {
+      // como o back retorna objeto direto (RegisterResponse)
+      if (response && response.id) {
         setSuccess(true);
-        setTimeout(() => {
-          onNavigateToLogin();
-        }, 2000);
-      } else if (response.errorMessage) {
-        setError(response.errorMessage.message);
+        setTimeout(() => onNavigateToLogin(), 2000);
       } else {
-        setError('Erro ao criar conta. Tente novamente.');
+        setError("Erro ao criar conta. Tente novamente.");
       }
-    } catch (error) {
-      setError('Erro de conexão. Verifique sua internet e tente novamente.');
+    } catch (err: any) {
+      setError(
+        err.message ??
+          "Erro de conexão. Verifique sua internet e tente novamente."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- UI de sucesso ---
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -169,7 +137,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserPlus className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Conta Criada!</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">
+            Conta Criada!
+          </h2>
           <p className="text-slate-600 mb-4">
             Sua conta foi criada com sucesso. Redirecionando para o login...
           </p>
@@ -179,6 +149,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
     );
   }
 
+  // --- FORM PRINCIPAL ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
@@ -207,92 +178,57 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
             </div>
           )}
 
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-slate-700 mb-2">
-              Nome Completo
-            </label>
-            <div className="relative">
-              <User className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Digite seu nome completo"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+          <InputField
+            icon={User}
+            id="fullName"
+            label="Nome Completo"
+            value={formData.fullName}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            placeholder="Digite seu nome completo"
+          />
+          <InputField
+            icon={FileText}
+            id="documentNumber"
+            label="CPF"
+            value={formData.documentNumber}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            placeholder="000.000.000-00"
+            maxLength={14}
+          />
+          <InputField
+            icon={Phone}
+            id="phoneNumber"
+            label="Telefone"
+            value={formData.phoneNumber}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            placeholder="(11) 99999-9999"
+            maxLength={15}
+          />
+          <InputField
+            icon={Mail}
+            id="email"
+            label="Email"
+            type="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            placeholder="Digite seu email"
+          />
 
           <div>
-            <label htmlFor="documentNumber" className="block text-sm font-medium text-slate-700 mb-2">
-              CPF
-            </label>
-            <div className="relative">
-              <FileText className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                id="documentNumber"
-                name="documentNumber"
-                value={formData.documentNumber}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="000.000.000-00"
-                maxLength={14}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="phoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
-              Telefone
-            </label>
-            <div className="relative">
-              <Phone className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                id="phoneNumber"
-                name="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="(11) 99999-9999"
-                maxLength={15}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Digite seu email"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-slate-700 mb-2"
+            >
               Senha
             </label>
             <div className="relative">
-              <Lock className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+              <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -304,13 +240,19 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 disabled={isLoading}
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Mínimo de 6 caracteres</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Mínimo de 6 caracteres
+            </p>
           </div>
 
           <button
@@ -324,14 +266,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
                 <span>Criando conta...</span>
               </div>
             ) : (
-              'Criar Conta'
+              "Criar Conta"
             )}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-slate-600">
-            Já tem uma conta?{' '}
+            Já tem uma conta?{" "}
             <button
               onClick={onNavigateToLogin}
               className="text-blue-600 hover:text-blue-700 font-medium"
@@ -345,5 +287,26 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin, onBack }
     </div>
   );
 };
+
+// 🔹 InputField simplificado para reduzir repetição
+const InputField = ({ icon: Icon, id, label, ...props }: any) => (
+  <div>
+    <label
+      htmlFor={id}
+      className="block text-sm font-medium text-slate-700 mb-2"
+    >
+      {label}
+    </label>
+    <div className="relative">
+      <Icon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        id={id}
+        name={id}
+        {...props}
+        className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  </div>
+);
 
 export default RegisterPage;

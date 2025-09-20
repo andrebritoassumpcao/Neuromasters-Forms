@@ -58,13 +58,11 @@ const LoginPage: React.FC<LoginPageProps> = ({
     try {
       const loginResponse = await authService.login(formData);
 
-      // aqui loginResponse já é direto { token, expiration, user }
       const roleResponse = await authService.getUserRole(loginResponse.user.id);
 
-      if (roleResponse.status === "Success" && roleResponse.result) {
-        authService.saveAuthData(loginResponse, roleResponse.result.role);
+      if (roleResponse && roleResponse.roleName) {
+        authService.saveAuthData(loginResponse, roleResponse.roleName);
       } else {
-        // fallback: role default
         authService.saveAuthData(loginResponse, "Cliente");
       }
 

@@ -1,84 +1,61 @@
 import {
   RegisterRequest,
   LoginRequest,
-  ApiResponse,
   RegisterResponse,
   LoginResponse,
   UserRoleResponse,
   AuthUser,
 } from "../types/auth";
 
-const API_BASE_URL = "http://localhost:5240/api/Auth";
+const API_BASE_URL = "http://localhost:5240/api";
 
 class AuthService {
   private async request<T>(
     endpoint: string,
     options?: RequestInit
-  ): Promise<ApiResponse<T>> {
+  ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-        },
-        ...options,
-      });
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+      ...options,
+    });
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("API Error:", error);
-      return {
-        status: "Error",
-        errorMessage: {
-          code: "NETWORK_ERROR",
-          message: "Erro de conexão com o servidor",
-        },
-      };
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Erro na requisição [${response.status}]: ${
+          text || response.statusText
+        }`
+      );
     }
+
+    return (await response.json()) as T;
   }
 
-  // 🔹 Register mantém ApiResponse
-  async register(
-    userData: RegisterRequest
-  ): Promise<ApiResponse<RegisterResponse>> {
-    return this.request<RegisterResponse>("/register", {
+  // 🔹 Register retorna RegisterResponse simples
+  async register(userData: RegisterRequest): Promise<RegisterResponse> {
+    return this.request<RegisterResponse>("/Auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
-  // 🔹 Login retorna direto LoginResponse (sem ApiResponse)
+  // 🔹 Login retorna LoginResponse simples
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const url = `${API_BASE_URL}/login`;
-    console.log("🔍 Chamando login:", url, credentials);
-
-    const response = await fetch(url, {
+    return this.request<LoginResponse>("/Auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-
-    console.log("🔍 Status response:", response.status);
-
-    // Verifica se não retornou OK
-    if (!response.ok) {
-      const text = await response.text(); // tentar ler mesmo erro
-      console.error("❌ Erro no login:", response.status, text);
-      throw new Error("Email ou senha inválidos");
-    }
-
-    const json = await response.json();
-    console.log("✅ JSON login recebido:", json);
-    return json;
   }
 
-  // 🔹 Busca role do usuário -> API ainda usa UseCaseResponse
-  async getUserRole(userId: string): Promise<ApiResponse<UserRoleResponse>> {
+  // 🔹 Get user role retorna UserRoleResponse simples
+  async getUserRole(userId: string): Promise<UserRoleResponse> {
     const token = this.getToken();
-    return this.request<UserRoleResponse>(`/${userId}/role`, {
+    return this.request<UserRoleResponse>(`/Roles/${userId}/user-role`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -86,7 +63,7 @@ class AuthService {
     });
   }
 
-  // 🔹 Local storage
+  // 🔹 Local storage management
   saveAuthData(loginResponse: LoginResponse, role: string): void {
     const authUser: AuthUser = {
       id: loginResponse.user.id,
@@ -107,9 +84,8 @@ class AuthService {
     if (!authUserStr) return null;
 
     try {
-      const authUser = JSON.parse(authUserStr);
+      const authUser: AuthUser = JSON.parse(authUserStr);
 
-      // Verificar expiração
       if (new Date(authUser.expiration) <= new Date()) {
         this.logout();
         return null;
@@ -126,13 +102,11 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
-    const authUser = this.getAuthUser();
-    return authUser !== null;
+    return this.getAuthUser() !== null;
   }
 
   hasRole(role: "Cliente" | "Administrador"): boolean {
-    const authUser = this.getAuthUser();
-    return authUser?.role === role;
+    return this.getAuthUser()?.role === role;
   }
 
   isAdmin(): boolean {

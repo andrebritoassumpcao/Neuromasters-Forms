@@ -11,15 +11,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface ApiResponse<T> {
-  status: "Success" | "BadRequest" | "Persisted" | "Error";
-  result?: T;
-  errorMessage?: {
-    code: string;
-    message: string;
-  };
-}
-
 export interface RegisterResponse {
   id: string;
   fullName: string;
@@ -44,9 +35,9 @@ export interface LoginResponse {
 
 export interface UserRoleResponse {
   userId: string;
-  email: string;
-  fullName: string;
-  role: "Cliente" | "Administrador";
+  userEmail: string;
+  userName: string;
+  roleName: "Cliente" | "Administrador";
 }
 
 export interface AuthUser {
