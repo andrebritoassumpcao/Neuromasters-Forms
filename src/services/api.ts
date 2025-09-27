@@ -1,8 +1,14 @@
 // API service for backend integration
+import {
+  SkillGroupDto,
+  QuestionnaireDetailDto,
+  QuestionnaireListDto,
+  CreateQuestionnaireRequest,
+  UpdateQuestionnaireRequest,
+} from "../types/questionnaire";
 import { authService } from "./authService";
 
-const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "https://localhost:7078/api";
+const API_BASE_URL = "http://localhost:5240/api";
 
 class ApiService {
   private async request<T>(
@@ -34,41 +40,35 @@ class ApiService {
   }
 
   // Forms endpoints
+  // Forms endpoints
   async getForms() {
-    return this.request<any[]>("/forms");
+    return this.request<QuestionnaireListDto>("/questionnaire/list-forms");
   }
 
-  async createForm(formData: any) {
-    return this.request("/forms", {
+  async createForm(formData: CreateQuestionnaireRequest) {
+    return this.request<QuestionnaireDetailDto>("/questionnaire/create-form", {
       method: "POST",
       body: JSON.stringify(formData),
     });
   }
 
-  async updateForm(id: string, formData: any) {
-    return this.request(`/forms/${id}`, {
+  async getForm(id: number) {
+    return this.request<QuestionnaireDetailDto>(
+      `/questionnaire/get-form/${id}`
+    );
+  }
+
+  async updateForm(formData: UpdateQuestionnaireRequest) {
+    return this.request<QuestionnaireDetailDto>("/questionnaire/update-form", {
       method: "PUT",
       body: JSON.stringify(formData),
     });
   }
 
-  async deleteForm(id: string) {
-    return this.request(`/forms/${id}`, {
+  async deleteForm(id: number) {
+    return this.request<boolean>(`/questionnaire/delete-form/${id}`, {
       method: "DELETE",
     });
-  }
-
-  // Responses endpoints
-  async submitFormResponse(formId: string, responses: any) {
-    return this.request(`/forms/${formId}/responses`, {
-      method: "POST",
-      body: JSON.stringify(responses),
-    });
-  }
-
-  async getFormResponses(formId?: string) {
-    const endpoint = formId ? `/forms/${formId}/responses` : "/responses";
-    return this.request<any[]>(endpoint);
   }
 
   // Users endpoints
@@ -86,6 +86,94 @@ class ApiService {
   // Dashboard stats
   async getDashboardStats() {
     return this.request<any>("/dashboard/stats");
+  }
+
+  // 🔹 SKILL GROUPS - Ajustados para os endpoints corretos
+  async getSkillGroups(): Promise<SkillGroupDto[]> {
+    const response = await this.request<{ skillGroups: SkillGroupDto[] }>(
+      "/questionnaire/list-groups"
+    );
+    return response.skillGroups;
+  }
+
+  async createSkillGroup(data: { code: string; description: string }) {
+    return this.request("/questionnaire/create-groups", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSkillGroup(code: string) {
+    return this.request(`/questionnaire/get-group/${code}`);
+  }
+
+  async updateSkillGroup(data: { code: string; description: string }) {
+    return this.request("/questionnaire/update-groups", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSkillGroup(code: string) {
+    return this.request(`/questionnaire/delete-group/${code}`, {
+      method: "DELETE",
+    });
+  }
+
+  // 🔹 NOVOS ENDPOINTS - Competências/Habilidades
+  async getCompetenciasByGroup(groupCode: string) {
+    return this.request<any[]>(`/grupos-habilidades/${groupCode}/competencias`);
+  }
+
+  async createCompetencia(
+    groupCode: string,
+    data: { descricao: string; sequencia: number }
+  ) {
+    return this.request(`/grupos-habilidades/${groupCode}/competencias`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCompetencia(
+    competenciaId: number,
+    data: { descricao: string; sequencia?: number }
+  ) {
+    return this.request(`/competencias/${competenciaId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCompetencia(competenciaId: number) {
+    return this.request(`/competencias/${competenciaId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // 🔹 NOVOS ENDPOINTS - Graus de Competência
+  async getGrausCompetencia() {
+    return this.request<any[]>("/graus-competencia");
+  }
+
+  async createGrauCompetencia(data: { codigo: number; descricao: string }) {
+    return this.request("/graus-competencia", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateGrauCompetencia(codigo: number, data: { descricao: string }) {
+    return this.request(`/graus-competencia/${codigo}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteGrauCompetencia(codigo: number) {
+    return this.request(`/graus-competencia/${codigo}`, {
+      method: "DELETE",
+    });
   }
 }
 

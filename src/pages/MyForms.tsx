@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Menu } from "@headlessui/react";
+import { MoreVertical } from "lucide-react";
 import {
   FileText,
   Edit3,
@@ -9,55 +11,43 @@ import {
   Filter,
   Plus,
 } from "lucide-react";
-import { FormData } from "../types";
+import { apiService } from "../services/api";
+import {
+  QuestionnaireDto,
+  QuestionnaireListDto,
+  QuestionnaireStatusEnum,
+} from "../types/questionnaire";
 
 const MyForms: React.FC = () => {
-  const [forms, setForms] = useState<FormData[]>([]);
+  const [forms, setForms] = useState<QuestionnaireDto[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "draft" | "published" | "completed"
+    "all" | QuestionnaireStatusEnum
   >("all");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - replace with API call
+  // Carregar do backend (listagem superficial)
   useEffect(() => {
-    const mockForms: FormData[] = [
-      {
-        id: "1",
-        name: "Avaliação de Comunicação Social",
-        createdAt: "2025-01-15T10:00:00Z",
-        status: "published",
-        questions: [],
-      },
-      {
-        id: "2",
-        name: "Comportamento Adaptativo",
-        createdAt: "2025-01-14T15:30:00Z",
-        status: "draft",
-        questions: [],
-      },
-      {
-        id: "3",
-        name: "Habilidades Motoras Finas",
-        createdAt: "2025-01-13T09:15:00Z",
-        status: "completed",
-        questions: [],
-      },
-      {
-        id: "4",
-        name: "Interação Social e Brincadeira",
-        createdAt: "2025-01-12T14:20:00Z",
-        status: "published",
-        questions: [],
-      },
-    ];
+    const loadForms = async () => {
+      try {
+        const result: QuestionnaireListDto = await apiService.getForms();
+        setForms(result.questionnaires);
+        setTotalCount(result.totalCount);
+      } catch (err) {
+        console.error("Erro ao carregar formulários:", err);
+        // Em caso de erro, manter arrays vazios
+        setForms([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setTimeout(() => {
-      setForms(mockForms);
-      setIsLoading(false);
-    }, 1000);
+    loadForms();
   }, []);
 
+  // Filtro (aplicado no frontend - se quiser filtro no backend, mover para a API)
   const filteredForms = forms.filter((form) => {
     const matchesSearch = form.name
       .toLowerCase()
@@ -67,47 +57,116 @@ const MyForms: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: string) => {
+  // Helpers de Status
+  const getStatusColor = (status: QuestionnaireStatusEnum) => {
     switch (status) {
-      case "published":
+      case QuestionnaireStatusEnum.Published:
         return "bg-green-100 text-green-800 border-green-200";
-      case "draft":
+      case QuestionnaireStatusEnum.Draft:
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "completed":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      default:
+      case QuestionnaireStatusEnum.Archived:
         return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-200";
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: QuestionnaireStatusEnum) => {
     switch (status) {
-      case "published":
+      case QuestionnaireStatusEnum.Published:
         return "Publicado";
-      case "draft":
+      case QuestionnaireStatusEnum.Draft:
         return "Rascunho";
-      case "completed":
-        return "Concluído";
+      case QuestionnaireStatusEnum.Archived:
+        return "Arquivado";
       default:
         return status;
     }
   };
 
-  const handleDeleteForm = (id: string) => {
+  // Ações
+  const handleDeleteForm = async (id: number) => {
     if (window.confirm("Tem certeza que deseja excluir este formulário?")) {
-      setForms(forms.filter((form) => form.id !== id));
+      try {
+        await apiService.deleteForm(id);
+        // Atualizar o state local removendo o item
+        setForms(forms.filter((form) => form.id !== id));
+        setTotalCount(totalCount - 1);
+      } catch (err) {
+        console.error("Erro ao excluir formulário:", err);
+        alert("Erro ao excluir formulário. Tente novamente.");
+      }
     }
   };
 
-  const handleDuplicateForm = (form: FormData) => {
-    const newForm: FormData = {
-      ...form,
-      id: Math.random().toString(36).substr(2, 9),
-      name: `${form.name} (Cópia)`,
-      createdAt: new Date().toISOString(),
-      status: "draft",
-    };
-    setForms([newForm, ...forms]);
+  const handleDuplicateForm = async (form: QuestionnaireDto) => {
+    try {
+      // Aqui você pode implementar um endpoint específico para duplicar
+      // Por enquanto, vamos simular localmente
+      const newForm: QuestionnaireDto = {
+        ...form,
+        id: Math.floor(Math.random() * 100000), // mock ID
+        name: `${form.name} (Cópia)`,
+        createdAt: new Date().toISOString(),
+        status: QuestionnaireStatusEnum.Draft,
+      };
+
+      // Adicionar ao início da lista
+      setForms([newForm, ...forms]);
+      setTotalCount(totalCount + 1);
+
+      // TODO: Implementar apiService.duplicateForm(form.id) quando disponível
+    } catch (err) {
+      console.error("Erro ao duplicar formulário:", err);
+      alert("Erro ao duplicar formulário. Tente novamente.");
+    }
+  };
+
+  const handlePublishForm = async (id: number) => {
+    try {
+      await apiService.updateForm({
+        id,
+        status: QuestionnaireStatusEnum.Published,
+      });
+      setForms(
+        forms.map((f) =>
+          f.id === id ? { ...f, status: QuestionnaireStatusEnum.Published } : f
+        )
+      );
+    } catch (err) {
+      console.error("Erro ao publicar formulário:", err);
+    }
+  };
+
+  const handleArchiveForm = async (id: number) => {
+    try {
+      await apiService.updateForm({
+        id,
+        status: QuestionnaireStatusEnum.Archived,
+      });
+      setForms(
+        forms.map((f) =>
+          f.id === id ? { ...f, status: QuestionnaireStatusEnum.Archived } : f
+        )
+      );
+    } catch (err) {
+      console.error("Erro ao arquivar formulário:", err);
+    }
+  };
+
+  const handleViewForm = (id: number) => {
+    // TODO: Navegar para página de visualização
+    console.log("Visualizar formulário:", id);
+  };
+
+  const handleEditForm = (id: number) => {
+    // TODO: Navegar para página de edição
+    console.log("Editar formulário:", id);
+  };
+
+  const handleCreateNew = () => {
+    // TODO: Navegar para página de criação
+    console.log("Criar novo formulário");
   };
 
   if (isLoading) {
@@ -127,6 +186,7 @@ const MyForms: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
@@ -135,8 +195,16 @@ const MyForms: React.FC = () => {
           <p className="text-slate-600">
             Gerencie seus questionários de avaliação comportamental
           </p>
+          {totalCount > 0 && (
+            <p className="text-sm text-slate-500 mt-1">
+              Total: {totalCount} questionário(s)
+            </p>
+          )}
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button
+          onClick={handleCreateNew}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           <span>Novo Formulário</span>
         </button>
@@ -146,6 +214,7 @@ const MyForms: React.FC = () => {
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-4">
+            {/* Busca */}
             <div className="relative flex-1 md:w-64">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
               <input
@@ -156,22 +225,33 @@ const MyForms: React.FC = () => {
                 className="pl-10 pr-4 py-2 w-full border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+
+            {/* Filtro de status */}
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-slate-600" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) =>
+                  setStatusFilter(
+                    e.target.value as "all" | QuestionnaireStatusEnum
+                  )
+                }
                 className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">Todos os Status</option>
-                <option value="draft">Rascunho</option>
-                <option value="published">Publicado</option>
-                <option value="completed">Concluído</option>
+                <option value={QuestionnaireStatusEnum.Draft}>Rascunho</option>
+                <option value={QuestionnaireStatusEnum.Published}>
+                  Publicado
+                </option>
+                <option value={QuestionnaireStatusEnum.Archived}>
+                  Arquivado
+                </option>
               </select>
             </div>
           </div>
+
           <div className="text-sm text-slate-600">
-            {filteredForms.length} formulário(s) encontrado(s)
+            {filteredForms.length} de {totalCount} formulário(s)
           </div>
         </div>
       </div>
@@ -202,41 +282,104 @@ const MyForms: React.FC = () => {
                     Criado em{" "}
                     {new Date(form.createdAt).toLocaleDateString("pt-BR")}
                   </p>
+                  {form.description && (
+                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                      {form.description}
+                    </p>
+                  )}
                 </div>
                 <FileText className="w-8 h-8 text-blue-600" />
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                <div className="text-sm text-slate-500">
-                  {form.questions?.length || 0} pergunta(s)
-                </div>
+              {/* 🔹 Ações */}
+              <div className="flex items-center justify-end pt-4 border-t border-slate-200">
                 <div className="flex items-center space-x-2">
+                  {/* Botões primários */}
                   <button
+                    onClick={() => handleViewForm(form.id)}
                     className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Visualizar"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
+                    onClick={() => handleEditForm(form.id)}
                     className="p-2 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                     title="Editar"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleDuplicateForm(form)}
-                    className="p-2 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                    title="Duplicar"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteForm(form.id)}
-                    className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+
+                  {/* Menu secundário */}
+                  <Menu as="div" className="relative inline-block text-left">
+                    <Menu.Button className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg">
+                      <MoreVertical className="w-5 h-5" />
+                    </Menu.Button>
+
+                    <Menu.Items className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-20 focus:outline-none">
+                      {/* Duplicar */}
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => handleDuplicateForm(form)}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              active ? "bg-slate-100 text-purple-600" : ""
+                            }`}
+                          >
+                            Duplicar
+                          </button>
+                        )}
+                      </Menu.Item>
+
+                      {/* Publicar se Draft */}
+                      {form.status === QuestionnaireStatusEnum.Draft && (
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handlePublishForm(form.id)}
+                              className={`block w-full text-left px-4 py-2 text-sm ${
+                                active ? "bg-slate-100 text-indigo-600" : ""
+                              }`}
+                            >
+                              Publicar
+                            </button>
+                          )}
+                        </Menu.Item>
+                      )}
+
+                      {/* Arquivar se Published */}
+                      {form.status === QuestionnaireStatusEnum.Published && (
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleArchiveForm(form.id)}
+                              className={`block w-full text-left px-4 py-2 text-sm ${
+                                active ? "bg-slate-100 text-orange-600" : ""
+                              }`}
+                            >
+                              Arquivar
+                            </button>
+                          )}
+                        </Menu.Item>
+                      )}
+
+                      {/* Excluir apenas se Draft */}
+                      {form.status === QuestionnaireStatusEnum.Draft && (
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleDeleteForm(form.id)}
+                              className={`block w-full text-left px-4 py-2 text-sm text-red-600 ${
+                                active ? "bg-red-50" : ""
+                              }`}
+                            >
+                              Excluir
+                            </button>
+                          )}
+                        </Menu.Item>
+                      )}
+                    </Menu.Items>
+                  </Menu>
                 </div>
               </div>
             </div>
@@ -244,6 +387,7 @@ const MyForms: React.FC = () => {
         ))}
       </div>
 
+      {/* Empty State */}
       {filteredForms.length === 0 && (
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
           <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -258,7 +402,10 @@ const MyForms: React.FC = () => {
               : "Comece criando seu primeiro formulário de avaliação"}
           </p>
           {!searchTerm && statusFilter === "all" && (
-            <button className="flex items-center space-x-2 mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button
+              onClick={handleCreateNew}
+              className="flex items-center space-x-2 mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               <span>Criar Primeiro Formulário</span>
             </button>
