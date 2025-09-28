@@ -1,24 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Menu } from "@headlessui/react";
 import { MoreVertical } from "lucide-react";
-import {
-  FileText,
-  Edit3,
-  Trash2,
-  Eye,
-  Copy,
-  Search,
-  Filter,
-  Plus,
-} from "lucide-react";
+import { FileText, Edit3, Eye, Search, Filter, Plus } from "lucide-react";
 import { apiService } from "../services/api";
 import {
   QuestionnaireDto,
   QuestionnaireListDto,
   QuestionnaireStatusEnum,
 } from "../types/questionnaire";
+import { useNavigate } from "react-router-dom";
 
 const MyForms: React.FC = () => {
+  const navigate = useNavigate();
   const [forms, setForms] = useState<QuestionnaireDto[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -155,15 +148,12 @@ const MyForms: React.FC = () => {
   };
 
   const handleViewForm = (id: number) => {
-    // TODO: Navegar para página de visualização
-    console.log("Visualizar formulário:", id);
+    navigate(`/forms/${id}/view`);
   };
 
   const handleEditForm = (id: number) => {
-    // TODO: Navegar para página de edição
-    console.log("Editar formulário:", id);
+    navigate(`/forms/${id}/edit`);
   };
-
   const handleCreateNew = () => {
     // TODO: Navegar para página de criação
     console.log("Criar novo formulário");

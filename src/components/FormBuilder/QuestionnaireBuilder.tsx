@@ -190,7 +190,7 @@ const QuestionnaireBuilder: React.FC<QuestionnaireBuilderProps> = ({
               <SkillGroupCard
                 key={group.tempId}
                 group={group}
-                allSkillGroups={allSkillGroups}
+                allSkillGroups={allSkillGroups ?? []}
                 onUpdateGroupName={updateGroupName}
                 onUpdateGroupCode={updateGroupCode}
                 onDeleteGroup={deleteGroup}
@@ -210,7 +210,7 @@ const QuestionnaireBuilder: React.FC<QuestionnaireBuilderProps> = ({
 // Componente do Card do Grupo
 interface SkillGroupCardProps {
   group: SkillGroup;
-  allSkillGroups?: SkillGroupDto[];
+  allSkillGroups: SkillGroupDto[];
   onUpdateGroupName: (groupId: string, name: string) => void;
   onUpdateGroupCode: (
     groupId: string,
@@ -231,7 +231,7 @@ interface SkillGroupCardProps {
 
 const SkillGroupCard: React.FC<SkillGroupCardProps> = ({
   group,
-  allSkillGroups,
+  allSkillGroups = [],
   onUpdateGroupName,
   onUpdateGroupCode,
   onDeleteGroup,
@@ -265,17 +265,34 @@ const SkillGroupCard: React.FC<SkillGroupCardProps> = ({
             {/* Combobox editável */}
             <div className="flex-1">
               <SkillGroupSelect
-                value={group.skillGroupCode || null}
-                options={(allSkillGroups || []).map((g) => ({
-                  value: g.code,
-                  label: g.description,
-                }))}
+                value={group.skillGroupCode || group.name || null}
+                options={[
+                  ...(allSkillGroups || []).map((g) => ({
+                    value: g.code,
+                    label: g.description,
+                  })),
+                  ...(group.name && !group.skillGroupCode
+                    ? [{ value: group.name, label: group.name }]
+                    : []),
+                ]}
                 onChange={(option) => {
                   if (!option) {
                     onUpdateGroupName(group.tempId, "");
                     return;
                   }
-                  onUpdateGroupCode(group.tempId, option.value, option.label);
+
+                  const selected = allSkillGroups.find(
+                    (sg) => sg.code === option.value
+                  );
+                  if (selected) {
+                    onUpdateGroupCode(
+                      group.tempId,
+                      selected.code,
+                      selected.description
+                    );
+                  } else {
+                    onUpdateGroupName(group.tempId, option.value);
+                  }
                 }}
                 placeholder="Digite o nome da seção ou selecione do catálogo..."
               />

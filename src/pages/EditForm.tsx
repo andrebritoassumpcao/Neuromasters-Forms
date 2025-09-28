@@ -2,50 +2,123 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Save, FileText } from "lucide-react";
 import QuestionnaireBuilder from "../components/FormBuilder/QuestionnaireBuilder";
 import { apiService } from "../services/api";
+import { UpdateQuestionnaireRequest } from "../types/questionnaire";
 import {
   SkillGroupDto,
-  CreateQuestionnaireRequest,
   QuestionnaireStatusEnum,
+  QuestionnaireDetailDto,
+  DefaultAnswerDto,
 } from "../types/questionnaire";
+import { useParams, useNavigate } from "react-router-dom";
 
-// Types para estado local (UI) - representa as seções do formulário
 interface Question {
-  tempId: string; // ID temporário para controle da UI
-  text: string; // mudou de 'question' para 'text'
+  id?: number;
+  tempId: string;
+  text: string;
   observations?: string;
   order: number;
 }
 
 interface SkillGroup {
-  tempId: string; // ID temporário para controle da UI
+  id?: number;
+  tempId: string;
   name: string;
   questions: Question[];
   isExpanded: boolean;
   order: number;
-  skillGroupCode?: string; // referência opcional ao SkillGroup do catálogo
+  skillGroupCode?: string;
 }
 
-const CreateForm: React.FC = () => {
+const EditForm: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  // Estados principais
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [allSkillGroups, setAllSkillGroups] = useState<SkillGroupDto[]>([]);
-  // Estado para novas opções
+  const [loadingForm, setLoadingForm] = useState(true);
+
+  // Estados das respostas padrão
+  const [answerOptions, setAnswerOptions] = useState<DefaultAnswerDto[]>([]);
   const [newOptionText, setNewOptionText] = useState("");
-  const [newOptionColor, setNewOptionColor] = useState("#3b82f6"); // azul padrão
+  const [newOptionColor, setNewOptionColor] = useState("#3b82f6");
 
-  // Lista de respostas (vai no payload da criação do formulário)
-  const [answerOptions, setAnswerOptions] = useState<
-    { label: string; color: string }[]
-  >([]);
+  // Totais calculados
+  const totalQuestions = useMemo(
+    () => skillGroups.reduce((total, g) => total + g.questions.length, 0),
+    [skillGroups]
+  );
 
+  const totalGroups = useMemo(
+    () => skillGroups.filter((g) => g.name.trim()).length,
+    [skillGroups]
+  );
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Carregar catálogo de skill groups
+        const groupsFromApi = await apiService.getSkillGroups();
+        setAllSkillGroups(groupsFromApi);
+
+        if (id) {
+          // Carregar formulário existente
+          const formData: QuestionnaireDetailDto = await apiService.getForm(
+            Number(id)
+          );
+          setFormName(formData.name);
+          setFormDescription(formData.description || "");
+
+          // Mapear seções e perguntas
+          const mappedGroups: SkillGroup[] = formData.sections.map(
+            (s, idx) => ({
+              id: s.id,
+              tempId: `${s.name}-${idx}`,
+              name: s.name,
+              order: s.order,
+              isExpanded: true,
+              questions: s.questions.map((q, i) => ({
+                id: q.id,
+                tempId: `${q.text}-${i}`,
+                text: q.text,
+                observations: q.observations,
+                order: q.order,
+              })),
+            })
+          );
+          setSkillGroups(mappedGroups);
+
+          // Carregar respostas padrão existentes
+          const defaultAnswers = await apiService.getDefaultAnswers(Number(id));
+          setAnswerOptions(defaultAnswers);
+        }
+      } catch (err) {
+        console.error("Erro carregando dados:", err);
+        alert("Erro ao carregar formulário. Tente novamente.");
+      } finally {
+        setLoadingForm(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  // Funções para gerenciar respostas padrão
   const handleAddOption = () => {
     if (!newOptionText.trim()) return;
-    setAnswerOptions((prev) => [
-      ...prev,
-      { label: newOptionText.trim(), color: newOptionColor },
-    ]);
+
+    const newOption: DefaultAnswerDto = {
+      id: 0, // Será criado no backend
+      questionnaireId: Number(id),
+      label: newOptionText.trim(),
+      color: newOptionColor,
+    };
+
+    setAnswerOptions((prev) => [...prev, newOption]);
     setNewOptionText("");
     setNewOptionColor("#3b82f6");
   };
@@ -53,33 +126,8 @@ const CreateForm: React.FC = () => {
   const handleRemoveOption = (idx: number) => {
     setAnswerOptions((prev) => prev.filter((_, i) => i !== idx));
   };
-  // Calcular totais para preview (otimizado com useMemo)
-  const totalQuestions = useMemo(
-    () =>
-      skillGroups.reduce((total, group) => total + group.questions.length, 0),
-    [skillGroups]
-  );
 
-  const totalGroups = useMemo(
-    () => skillGroups.filter((group) => group.name.trim()).length,
-    [skillGroups]
-  );
-
-  // Carregar catálogo de SkillGroups disponíveis
-  useEffect(() => {
-    const loadSkillGroups = async () => {
-      try {
-        const groupsFromApi = await apiService.getSkillGroups();
-        setAllSkillGroups(groupsFromApi);
-      } catch (err) {
-        console.error("Erro carregando grupos de habilidades:", err);
-      }
-    };
-
-    loadSkillGroups();
-  }, []);
-
-  // Função para validar o formulário
+  // Validação do formulário
   const validateForm = (): string | null => {
     if (!formName.trim()) {
       return "Por favor, insira um nome para o Questionário.";
@@ -96,33 +144,64 @@ const CreateForm: React.FC = () => {
     return null;
   };
 
-  // Função para construir o payload da API (mapear UI state -> DTO)
-  const buildPayload = (): CreateQuestionnaireRequest => {
-    return {
-      name: formName,
-      description: formDescription || undefined,
-      status: QuestionnaireStatusEnum.Draft, // sempre começa como rascunho
-      sections: skillGroups.map((group) => ({
-        name: group.name,
-        order: group.order,
-        questions: group.questions.map((question) => ({
-          text: question.text,
-          observations: question.observations || undefined,
-          order: question.order,
-        })),
+  // Construir payload para atualização
+  const buildPayload = (): UpdateQuestionnaireRequest => ({
+    id: Number(id),
+    name: formName,
+    description: formDescription || undefined,
+    status: QuestionnaireStatusEnum.Draft,
+    sections: skillGroups.map((group) => ({
+      id: group.id ?? 0,
+      name: group.name,
+      order: group.order,
+      questions: group.questions.map((q) => ({
+        id: q.id ?? 0,
+        text: q.text,
+        observations: q.observations || undefined,
+        order: q.order,
       })),
-    };
+    })),
+  });
+
+  // Sincronizar respostas padrão
+  const syncDefaultAnswers = async (questionnaireId: number) => {
+    try {
+      // Buscar respostas atuais no banco
+      const currentAnswers = await apiService.getDefaultAnswers(
+        questionnaireId
+      );
+
+      // Identificar respostas para deletar (existem no banco mas não no estado local)
+      const answersToDelete = currentAnswers.filter(
+        (current) => !answerOptions.some((local) => local.id === current.id)
+      );
+
+      // Identificar respostas para criar (não têm ID ou têm ID = 0)
+      const answersToCreate = answerOptions.filter(
+        (local) => !local.id || local.id === 0
+      );
+
+      // Deletar respostas removidas
+      for (const answer of answersToDelete) {
+        await apiService.deleteDefaultAnswer(answer.id);
+      }
+
+      // Criar novas respostas
+      for (const answer of answersToCreate) {
+        await apiService.createDefaultAnswer({
+          questionnaireId,
+          label: answer.label,
+          color: answer.color,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar respostas padrão:", error);
+      throw error;
+    }
   };
 
-  // Função para resetar o formulário
-  const resetForm = () => {
-    setFormName("");
-    setFormDescription("");
-    setSkillGroups([]);
-  };
-
+  // Salvar formulário
   const handleSaveForm = async () => {
-    // Validação
     const validationError = validateForm();
     if (validationError) {
       alert(validationError);
@@ -131,26 +210,29 @@ const CreateForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const payload = buildPayload();
-      const createdForm = await apiService.createForm(payload);
+      // Atualizar questionário
+      await apiService.updateForm(buildPayload());
 
-      for (const opt of answerOptions) {
-        await apiService.createDefaultAnswer({
-          questionnaireId: createdForm.id, // agora sim temos o id certo
-          label: opt.label,
-          color: opt.color,
-        });
-      }
+      // Sincronizar respostas padrão
+      await syncDefaultAnswers(Number(id));
 
-      alert("Questionário e respostas padrão salvos com sucesso!");
-      resetForm();
-    } catch (error) {
-      console.error("Erro ao salvar questionário ou respostas padrão:", error);
-      alert("Erro ao salvar. Tente novamente.");
+      alert("Questionário atualizado com sucesso!");
+      navigate("/forms");
+    } catch (err) {
+      console.error("Erro ao atualizar questionário:", err);
+      alert("Erro ao atualizar questionário. Tente novamente.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (loadingForm) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-slate-600">Carregando formulário...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -158,10 +240,10 @@ const CreateForm: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            Criar Questionário
+            Editar Questionário
           </h1>
           <p className="text-slate-600">
-            Desenvolva um novo questionário de avaliação comportamental
+            Atualize as informações do questionário de avaliação comportamental
           </p>
         </div>
         <button
@@ -171,15 +253,17 @@ const CreateForm: React.FC = () => {
           className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Save className="w-5 h-5" />
-          <span>{isLoading ? "Salvando..." : "Salvar Questionário"}</span>
+          <span>{isLoading ? "Salvando..." : "Atualizar Questionário"}</span>
         </button>
       </div>
 
-      {/* Configuração */}
+      {/* Configuração do Questionário */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-800 mb-4">
           Configuração do Questionário
         </h2>
+
+        {/* Nome e Descrição */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <label
@@ -238,7 +322,7 @@ const CreateForm: React.FC = () => {
             <button
               type="button"
               onClick={handleAddOption}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Adicionar
             </button>
@@ -248,7 +332,7 @@ const CreateForm: React.FC = () => {
           <div className="flex flex-wrap gap-3">
             {answerOptions.map((opt, idx) => (
               <div
-                key={idx}
+                key={opt.id || idx}
                 className="flex items-center gap-2 px-3 py-1 rounded-lg border border-slate-300"
                 style={{ backgroundColor: opt.color + "20" }}
               >
@@ -260,13 +344,20 @@ const CreateForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleRemoveOption(idx)}
-                  className="ml-2 text-slate-500 hover:text-red-600"
+                  className="ml-2 text-slate-500 hover:text-red-600 transition-colors"
                 >
                   ✕
                 </button>
               </div>
             ))}
           </div>
+
+          {answerOptions.length === 0 && (
+            <p className="text-sm text-slate-500 italic">
+              Nenhuma resposta padrão configurada. Adicione opções que serão
+              aplicadas a todas as perguntas.
+            </p>
+          )}
         </div>
       </div>
 
@@ -302,6 +393,11 @@ const CreateForm: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-1">
                     Status: Rascunho
                   </p>
+                  {answerOptions.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      {answerOptions.length} resposta(s) padrão configurada(s)
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -335,4 +431,4 @@ const CreateForm: React.FC = () => {
   );
 };
 
-export default CreateForm;
+export default EditForm;

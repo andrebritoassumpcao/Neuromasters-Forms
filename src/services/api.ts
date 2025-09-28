@@ -5,6 +5,8 @@ import {
   QuestionnaireListDto,
   CreateQuestionnaireRequest,
   UpdateQuestionnaireRequest,
+  CreateDefaultAnswerRequest,
+  DefaultAnswerDto,
 } from "../types/questionnaire";
 import { authService } from "./authService";
 
@@ -40,7 +42,6 @@ class ApiService {
   }
 
   // Forms endpoints
-  // Forms endpoints
   async getForms() {
     return this.request<QuestionnaireListDto>("/questionnaire/list-forms");
   }
@@ -70,7 +71,34 @@ class ApiService {
       method: "DELETE",
     });
   }
+  // Default Answers endpoints
+  async getDefaultAnswers(questionnaireId: number) {
+    return this.request<DefaultAnswerDto[]>(
+      `/questionnaire/list-default-answers/${questionnaireId}`
+    );
+  }
 
+  async createDefaultAnswer(answerData: CreateDefaultAnswerRequest) {
+    return this.request<DefaultAnswerDto>(
+      "/questionnaire/create-default-answer",
+      {
+        method: "POST",
+        body: JSON.stringify(answerData),
+      }
+    );
+  }
+
+  async getDefaultAnswer(id: number) {
+    return this.request<DefaultAnswerDto>(
+      `/questionnaire/get-default-answer/${id}`
+    );
+  }
+
+  async deleteDefaultAnswer(id: number) {
+    return this.request<boolean>(`/questionnaire/delete-default-answer/${id}`, {
+      method: "DELETE",
+    });
+  }
   // Users endpoints
   async getUsers() {
     return this.request<any[]>("/users");

@@ -9,40 +9,37 @@ import {
   Shield,
 } from "lucide-react";
 import { authService } from "../../services/authService";
-
-interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
+import { NavLink } from "react-router-dom";
 
 const allMenuItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
   {
-    id: "create-form",
+    path: "/forms/create",
     label: "Criar Questionário",
     icon: FileText,
     adminOnly: true,
   },
   {
-    id: "my-forms",
+    path: "/forms",
     label: "Meus Questionários",
     icon: FolderOpen,
     adminOnly: true,
+    end: true,
   },
-  { id: "responses", label: "Respostas", icon: MessageSquare },
-  { id: "users", label: "Usuários", icon: Users, adminOnly: true },
-  { id: "settings", label: "Configurações", icon: Settings },
+  { path: "/responses", label: "Respostas", icon: MessageSquare, end: true },
+  { path: "/users", label: "Usuários", icon: Users, adminOnly: true },
+  { path: "/settings", label: "Configurações", icon: Settings, end: true },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
+const Sidebar: React.FC = () => {
   const authUser = authService.getAuthUser();
   const isAdmin = authUser?.role === "Administrador";
 
-  // Filter menu items based on user role
   const menuItems = allMenuItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
+      {/* Header */}
       <div className="p-6 border-b border-slate-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -60,34 +57,36 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
         </div>
       </div>
 
+      {/* Menu */}
       <nav className="flex-1 p-4">
         <ul className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
 
             return (
-              <li key={item.id}>
-                <button
-                  onClick={() => onTabChange(item.id)}
-                  className={`
-                    w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  end={item.end} // só aplica quando definirmos no array
+                  className={({ isActive }) =>
+                    `w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200
                     ${
                       isActive
                         ? "bg-blue-600 text-white shadow-md"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }
-                  `}
+                    }`
+                  }
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
-                </button>
+                </NavLink>
               </li>
             );
           })}
         </ul>
       </nav>
 
+      {/* Rodapé */}
       <div className="p-4 border-t border-slate-700">
         <div className="text-xs text-slate-400 text-center">
           © 2025 TEA Assessment System

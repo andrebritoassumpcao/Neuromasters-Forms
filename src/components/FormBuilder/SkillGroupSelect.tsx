@@ -26,29 +26,24 @@ const SkillGroupSelect: React.FC<Props> = ({ value, onChange }) => {
   useEffect(() => {
     (async () => {
       try {
-        console.log("🔍 Iniciando busca de grupos...");
         setLoading(true);
 
         // 🚨 PRIMEIRO DEBUG: Vamos ver o que a API retorna
         const response = await apiService.getSkillGroups();
-        console.log("📡 Resposta da API:", response);
 
         // 🚨 SEGUNDO DEBUG: Verificar se tem skillGroups
         const groupsFromApi: SkillGroupDto[] = response || response;
-        console.log("📋 Grupos extraídos:", groupsFromApi);
 
         const mappedOptions = groupsFromApi.map((g) => ({
           value: g.code,
           label: g.description,
         }));
 
-        console.log("🎯 Opções mapeadas:", mappedOptions);
         setOptions(mappedOptions);
       } catch (error) {
         console.error("❌ Erro ao carregar grupos:", error);
       } finally {
         setLoading(false);
-        console.log("✅ Busca finalizada");
       }
     })();
   }, []);
@@ -73,8 +68,6 @@ const SkillGroupSelect: React.FC<Props> = ({ value, onChange }) => {
         description: inputValue,
       })) as SkillGroupDto;
 
-      console.log("✅ Grupo criado:", novoGrupo);
-
       const newOption: Option = {
         value: novoGrupo.code,
         label: novoGrupo.description,
@@ -98,9 +91,13 @@ const SkillGroupSelect: React.FC<Props> = ({ value, onChange }) => {
       }}
       onCreateOption={handleCreate}
       options={options}
-      value={options.find((o) => o.value === value) || null}
+      value={
+        options.find((o) => o.value === value) ||
+        (value ? { value, label: value } : null)
+      }
       placeholder="Selecione ou crie um grupo..."
       formatCreateLabel={(inputValue) => `Criar "${inputValue}"`}
+      menuPortalTarget={document.body} // 🔹 renderiza fora do container
       styles={{
         container: (base) => ({ ...base, width: "100%" }),
         control: (base) => ({
@@ -108,6 +105,8 @@ const SkillGroupSelect: React.FC<Props> = ({ value, onChange }) => {
           minHeight: "40px",
           borderColor: "#d1d5db",
         }),
+        menuPortal: (base) => ({ ...base, zIndex: 9999 }), // 🔹 fica no topo
+        menu: (base) => ({ ...base, zIndex: 9999 }), // 🔹 extra segurança
       }}
     />
   );

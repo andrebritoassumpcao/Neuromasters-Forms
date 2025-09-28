@@ -99,3 +99,15 @@ export interface UpdateQuestionnaireRequest {
   status: QuestionnaireStatusEnum;
   sections?: UpdateFormSectionRequest[];
 }
+export interface DefaultAnswerDto {
+  id: number;
+  questionnaireId: number;
+  label: string;
+  color: string;
+}
+
+export interface CreateDefaultAnswerRequest {
+  questionnaireId: number;
+  label: string;
+  color: string;
+}
